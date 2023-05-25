@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>누구가 더 빠른가?</title>
+  <style>
+    body {
+      background-color: #222;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-size: 40px;
+      margin-bottom: 30px;
+      letter-spacing: 2px;
+    }
+
+    h2 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    #timer {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    #clickButton {
+      font-size: 18px;
+      padding: 10px 20px;
+      background-color: #FFD700;
+      color: #222;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+
+    #clickButton:hover {
+      background-color: #FFC800;
+    }
+
+    .ranking {
+      margin-top: 40px;
+    }
+
+    .ranking h3 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .ranking-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .ranking-item {
+      font-size: 16px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ranking-item span {
+      margin-right: 10px;
+    }
+
+    #credit {
+      position:absolute;
+      top: 50px;
+      right: 100px;
+      font-size: 14px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>누구가 더 빠른가?</h1>
+    <h2 id="timer">0.000 초</h2>
+    <button id="clickButton" disabled>클릭하세요!</button>
+    <button onclick="startGame()">시작</button>
+    <div class="ranking">
+      <h3>자기 기록표</h3>
+      <ol class="ranking-list" id="rankingList"></ol>
+    </div>
+    
+  </div>
+<div id="credit">얼상이가 만들었어요!</div>
+  <script>
+    var startTime, endTime;
+    var rankingList = [];
+
+    // 서버에서 랭킹 데이터 가져오기
+    function fetchRankingData() {
+      fetch('/ranking')
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(data) {
+          rankingList = data;
+          updateRanking();
+        })
+        .catch(function(error) {
+          console.error('랭킹 데이터를 가져오는 중 오류가 발생했습니다:', error);
+        });
+    }
+
+  // 랭킹 데이터 추가
+function addRankingData(name, time) {
+  var data = {
+    name: name,
+    time: time
+  };
+
+  fetch('/ranking', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+    .then(function(response) {
+      if (response.ok) {
+        console.log('랭킹 데이터가 성공적으로 추가되었습니다.');
+        // 랭킹 데이터 업데이트
+        fetchRankingData();
+      } else {
+        console.error('랭킹 데이터 추가 중 오류가 발생했습니다.');
+      }
+    })
+    .catch(function(error) {
+      console.error('랭킹 데이터 추가 중 오류가 발생했습니다:', error);
+    });
+}
+
+
+    if (localStorage.getItem('rankingData')) {
+      rankingList = JSON.parse(localStorage.getItem('rankingData'));
+      updateRanking();
+    }
+
+    // 랭킹 업데이트
+    function updateRanking() {
+      rankingList.sort(function(a, b) {
+        return a.time - b.time;
+      });
+
+      var rankingListElement = document.getElementById('rankingList');
+      rankingListElement.innerHTML = '';
+
+      var maxRankingItems = Math.min(rankingList.length, 10);
+
+      for (var i = 0; i < maxRankingItems; i++) {
+        var rankingItem = rankingList[i];
+        var listItem = document.createElement('li');
+        listItem.className = 'ranking-item';
+        listItem.innerHTML = '<span>' + rankingItem.name + '</span><span>' + rankingItem.time + ' 초</span>';
+        rankingListElement.appendChild(listItem);
+      }
+    }
+
+    function startGame() {
+      var button = document.getElementById('clickButton');
+      button.disabled = false;
+      button.innerHTML = '클릭하세요!';
+      button.onclick = function() {
+        endGame();
+      };
+
+      startTime = new Date();
+    }
+
+    function endGame() {
+      endTime = new Date();
+      var timeDiff = endTime - startTime;
+      var seconds = timeDiff / 1000;
+      document.getElementById('timer').innerHTML = seconds.toFixed(3) + ' 초';
+
+      var playerName = prompt('이름을 입력하세요:');
+      if (playerName) {
+        var rankingItem = {
+          name: playerName,
+          time: seconds.toFixed(3)
+        };
+        rankingList.push(rankingItem);
+        updateRanking();
+
+        // 서버에 랭킹 데이터 추가
+        addRankingData(playerName, seconds.toFixed(3));
+
+        localStorage.setItem('rankingData', JSON.stringify(rankingList));
+      }
+
+      var button = document.getElementById('clickButton');
+      button.disabled = true;
+      button.innerHTML = '클릭!';
+      button.onclick = null;
+    }
+
+    // 초기 랭킹 데이터 가져오기
+    fetchRankingData();
+  </script>
+</body>
+</html>
